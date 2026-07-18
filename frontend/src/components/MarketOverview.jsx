@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import ReactECharts from 'echarts-for-react';
 
+const BASE = `http://${window.location.hostname}:8000/api`;
+
 async function fetchOverview() {
-  const BASE = 'http://localhost:8000/api';
   const [indices, flow] = await Promise.all([
     fetch(`${BASE}/market/overview`).then(r => r.json()).catch(() => ({})),
     fetch(`${BASE}/market/sector-flow`).then(r => r.json()).catch(() => ({ data: [] })),
@@ -34,7 +35,7 @@ export default function MarketOverview({ onStockClick }) {
     setSearchKeyword(kw);
     if (kw.trim().length < 2) { setSearchResults([]); setShowDropdown(false); return; }
     try {
-      const r = await fetch(`http://localhost:8000/api/market/search-realtime?keyword=${encodeURIComponent(kw)}`);
+      const r = await fetch(`${BASE}/market/search-realtime?keyword=${encodeURIComponent(kw)}`);
       const d = await r.json();
       setSearchResults(d.results || []);
       setShowDropdown((d.results || []).length > 0);

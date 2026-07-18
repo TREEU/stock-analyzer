@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const API_BASE = 'http://localhost:8000/api';
+// 自动适配：local环境用localhost，手机访问用同一局域网IP
+const host = window.location.hostname;
+const API_BASE = `http://${host}:8000/api`;
 
 const client = axios.create({
   baseURL: API_BASE,
