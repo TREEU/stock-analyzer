@@ -339,3 +339,111 @@ async def api_search_realtime(keyword: str = Query(..., min_length=1)):
         })
 
     return {"results": enriched}
+
+
+# ── 持仓管理 ──
+
+@router.get("/portfolio")
+async def api_get_portfolio():
+    """获取全部持仓"""
+    from backend.data.portfolio import get_holdings
+    return get_holdings()
+
+
+@router.post("/portfolio/add")
+async def api_add_holding(data: dict):
+    """添加持仓 (JSON body: {code, name, cost_price, quantity, notes})"""
+    from backend.data.portfolio import add_holding
+    holding = add_holding(
+        code=data.get("code", ""),
+        name=data.get("name", ""),
+        cost_price=data.get("cost_price", 0),
+        quantity=data.get("quantity", 0),
+        notes=data.get("notes", ""),
+    )
+    return {"ok": True, "holding": holding}
+
+
+@router.put("/portfolio/{holding_id}")
+async def api_update_holding(
+    holding_id: str,
+    cost_price: float = Query(default=None),
+    quantity: int = Query(default=None),
+    notes: str = Query(default=None),
+):
+    """更新持仓"""
+    from backend.data.portfolio import update_holding
+    kwargs = {}
+    if cost_price is not None:
+        kwargs["cost_price"] = cost_price
+    if quantity is not None:
+        kwargs["quantity"] = quantity
+    if notes is not None:
+        kwargs["notes"] = notes
+    result = update_holding(holding_id, **kwargs)
+    if result is None:
+        raise HTTPException(status_code=404, detail="持仓不存在")
+    return {"ok": True, "holding": result}
+
+
+@router.delete("/portfolio/{holding_id}")
+async def api_delete_holding(holding_id: str):
+    """删除持仓"""
+    from backend.data.portfolio import delete_holding
+    ok = delete_holding(holding_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="持仓不存在")
+    return {"ok": True}
+
+
+@router.delete("/portfolio")
+async def api_clear_portfolio():
+    """清空全部持仓"""
+    from backend.data.portfolio import clear_holdings
+    count = clear_holdings()
+    return {"ok": True, "cleared": count}
+
+
+# ── 买卖时机分析 ──
+
+@router.get("/portfolio/analyze")
+async def api_portfolio_analyze():
+    """分析所有持仓的买卖时机"""
+    from backend.data.portfolio import get_holdings
+    from backend.analysis.timing import analyze_timing
+
+    holdings = get_holdings()["holdings"]
+    results = []
+    for h in holdings:
+        timing = analyze_timing(h["code"], h["cost_price"])
+        timing["holding_id"] = h["id"]
+        timing["name"] = h["name"]
+        timing["quantity"] = h["quantity"]
+        timing["added_at"] = h.get("added_at", "")
+        results.append(timing)
+
+    # 按信号优先级排序：buy > hold > sell
+    signal_order = {"buy": 0, "hold": 1, "sell": 2}
+    results.sort(key=lambda x: signal_order.get(x.get("signal", "hold"), 1))
+
+    return {"holdings": results, "updated_at": get_holdings()["updated_at"]}
+
+
+@router.get("/portfolio/analyze/{code}")
+async def api_single_timing(code: str, cost_price: float = Query(default=0)):
+    """单只股票买卖时机分析"""
+    from backend.analysis.timing import analyze_timing
+    return analyze_timing(code, cost_price)
+
+
+# ── 综合回测验证 ──
+
+@router.get("/validate/{code}")
+async def api_comprehensive_validate(
+    code: str,
+    start: str = Query(default="20210101"),
+    end: str = Query(default_factory=get_default_end_date),
+):
+    """全面验证：多策略对比 + 牛熊分段 + 滚动窗口 + 参数敏感性"""
+    from backend.backtest.validator import comprehensive_validate
+    return comprehensive_validate(code, start, end)

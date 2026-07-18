@@ -8,11 +8,12 @@ import RiskPanel from './components/RiskPanel';
 import BacktestPanel from './components/BacktestPanel';
 import RecPanel from './components/RecPanel';
 import MarketOverview from './components/MarketOverview';
+import PortfolioPanel from './components/PortfolioPanel';
 import { useAnalysis } from './hooks/useAnalysis';
 
 const TABS = [
-  { key: 'market', label: '📡 实时行情' },
   { key: 'rec', label: '操作建议' },
+  { key: 'market', label: '📡 实时行情' },
   { key: 'tech', label: '技术指标' },
   { key: 'valuation', label: '估值分析' },
   { key: 'risk', label: '风险评估' },
@@ -20,7 +21,7 @@ const TABS = [
 ];
 
 export default function App() {
-  const [tab, setTab] = useState('market');
+  const [tab, setTab] = useState('portfolio');
   const {
     code, setCode, loading, error, data,
     backtestResult, backtestLoading, executeBacktest, strategies,
@@ -29,7 +30,15 @@ export default function App() {
   return (
     <>
       <header className="app-header">
-        <h1>A股量化分析平台</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {code && (
+            <button className="btn btn-sm" onClick={() => { setCode(''); setTab('rec'); }}
+              style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: '#8b8fa3', cursor: 'pointer' }}>
+              ← 返回持仓
+            </button>
+          )}
+          <h1>A股量化分析平台</h1>
+        </div>
         <StockSearch value={code} onChange={setCode} />
       </header>
 
@@ -37,11 +46,7 @@ export default function App() {
         {error && <div className="error-msg"> {error}</div>}
 
         {!code && !loading && (
-          <div className="empty-state">
-            <div style={{ fontSize: 48 }}></div>
-            <div>输入股票代码开始分析</div>
-            <div className="hint">例如：000001（平安银行）、600519（贵州茅台）</div>
-          </div>
+          <PortfolioPanel onStockClick={(c) => { setCode(c); setTab('rec'); }} />
         )}
 
         {loading && <div className="loading">加载数据中...</div>}
@@ -137,6 +142,7 @@ export default function App() {
             )}
             {tab === 'backtest' && (
               <BacktestPanel
+                code={code}
                 strategies={strategies}
                 onRun={executeBacktest}
                 result={backtestResult}

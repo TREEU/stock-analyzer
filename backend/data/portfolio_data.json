@@ -1,0 +1,32 @@
+{
+  "holdings": [
+    {
+      "id": "837d8d51",
+      "code": "600460",
+      "name": "士兰微",
+      "cost_price": 50.47,
+      "quantity": 200,
+      "notes": "",
+      "added_at": "2026-07-18 18:09"
+    },
+    {
+      "id": "b3227707",
+      "code": "515880",
+      "name": "通信ETF",
+      "cost_price": 0.81,
+      "quantity": 12800,
+      "notes": "",
+      "added_at": "2026-07-18 18:11"
+    },
+    {
+      "id": "dce66fc8",
+      "code": "601398",
+      "name": "工商银行",
+      "cost_price": 7.39,
+      "quantity": 2800,
+      "notes": "",
+      "added_at": "2026-07-18 19:39"
+    }
+  ],
+  "updated_at": "2026-07-18T19:39:40.297189"
+}
