@@ -13,7 +13,6 @@ import { useAnalysis } from './hooks/useAnalysis';
 
 const TABS = [
   { key: 'rec', label: '操作建议' },
-  { key: 'market', label: '📡 实时行情' },
   { key: 'tech', label: '技术指标' },
   { key: 'valuation', label: '估值分析' },
   { key: 'risk', label: '风险评估' },
@@ -38,6 +37,23 @@ export default function App() {
             </button>
           )}
           <h1>A股量化分析平台</h1>
+          <nav style={{ display: 'flex', gap: 4, marginLeft: 16 }}>
+            {[
+              { id: 'market', label: '行情' },
+              { id: 'portfolio', label: '持仓' },
+            ].map(n => (
+              <a key={n.id} href={`#${n.id}`} style={{
+                padding: '3px 10px', borderRadius: 4, fontSize: 12, color: '#8b8fa3',
+                textDecoration: 'none', background: 'var(--bg)', border: '1px solid var(--border)',
+              }} onClick={(e) => {
+                e.preventDefault();
+                const el = document.getElementById(n.id);
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+                // 如果在分析页，点持仓就回到首页
+                if (n.id === 'portfolio' && code) setCode('');
+              }}>{n.label}</a>
+            ))}
+          </nav>
         </div>
         <StockSearch value={code} onChange={setCode} />
       </header>
@@ -46,7 +62,10 @@ export default function App() {
         {error && <div className="error-msg"> {error}</div>}
 
         {!code && !loading && (
-          <PortfolioPanel onStockClick={(c) => { setCode(c); setTab('rec'); }} />
+          <>
+            <div id="market"><MarketOverview onStockClick={(c) => { setCode(c); setTab('rec'); }} /></div>
+            <div id="portfolio"><PortfolioPanel onStockClick={(c) => { setCode(c); setTab('rec'); }} /></div>
+          </>
         )}
 
         {loading && <div className="loading">加载数据中...</div>}
@@ -125,9 +144,6 @@ export default function App() {
             </div>
 
             {/* Tab 内容 */}
-            {tab === 'market' && (
-              <MarketOverview onStockClick={(c) => { setCode(c); setTab('rec'); }} />
-            )}
             {tab === 'tech' && (
               <TechPanel indicators={data.indicators} />
             )}

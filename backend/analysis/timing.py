@@ -100,62 +100,56 @@ def analyze_timing(code: str, cost_price: float = 0) -> dict:
 
 
 def _find_supports(df: pd.DataFrame, current_price: float) -> list[dict]:
-    """找出支撑位"""
+    """找出支撑位（过滤掉太远的，>20%不算）"""
     close = df["close"].astype(float)
     low = df["low"].astype(float)
     supports = []
+    max_dist = current_price * 0.2  # 最多20%距离
 
-    # MA20 / MA60 支撑
     for p, label in [(20, "MA20"), (60, "MA60"), (120, "MA120")]:
         ma = close.rolling(p).mean().iloc[-1]
-        if pd.notna(ma) and ma < current_price:
-            supports.append({"level": round(float(ma), 2), "type": label})
+        if pd.notna(ma) and ma < current_price and (current_price - ma) < max_dist:
+            supports.append({"level": round(float(ma), 3), "type": label})
 
-    # 布林下轨
     bb_mid = close.rolling(20).mean()
     bb_std = close.rolling(20).std()
     bb_low = bb_mid - 2 * bb_std
-    if pd.notna(bb_low.iloc[-1]) and bb_low.iloc[-1] < current_price:
-        supports.append({"level": round(float(bb_low.iloc[-1]), 2), "type": "布林下轨"})
+    if pd.notna(bb_low.iloc[-1]) and bb_low.iloc[-1] < current_price and (current_price - bb_low.iloc[-1]) < max_dist:
+        supports.append({"level": round(float(bb_low.iloc[-1]), 3), "type": "布林下轨"})
 
-    # 近期最低价
     recent_low = low.tail(20).min()
-    if recent_low < current_price:
-        supports.append({"level": round(float(recent_low), 2), "type": "20日最低"})
+    if recent_low < current_price and (current_price - recent_low) < max_dist:
+        supports.append({"level": round(float(recent_low), 3), "type": "20日最低"})
 
-    # 按离当前价距离排序（最近的支撑优先）
     supports.sort(key=lambda x: current_price - x["level"])
     return supports
 
 
 def _find_resistances(df: pd.DataFrame, current_price: float) -> list[dict]:
-    """找出压力位"""
+    """找出压力位（过滤>20%的）"""
     close = df["close"].astype(float)
     high = df["high"].astype(float)
     resistances = []
+    max_dist = current_price * 0.2
 
-    # MA20 / MA60 压力
     for p, label in [(20, "MA20"), (60, "MA60"), (120, "MA120")]:
         ma = close.rolling(p).mean().iloc[-1]
-        if pd.notna(ma) and ma > current_price:
-            resistances.append({"level": round(float(ma), 2), "type": label})
+        if pd.notna(ma) and ma > current_price and (ma - current_price) < max_dist:
+            resistances.append({"level": round(float(ma), 3), "type": label})
 
-    # 布林上轨
     bb_mid = close.rolling(20).mean()
     bb_std = close.rolling(20).std()
     bb_high = bb_mid + 2 * bb_std
-    if pd.notna(bb_high.iloc[-1]) and bb_high.iloc[-1] > current_price:
-        resistances.append({"level": round(float(bb_high.iloc[-1]), 2), "type": "布林上轨"})
+    if pd.notna(bb_high.iloc[-1]) and bb_high.iloc[-1] > current_price and (bb_high.iloc[-1] - current_price) < max_dist:
+        resistances.append({"level": round(float(bb_high.iloc[-1]), 3), "type": "布林上轨"})
 
-    # 近期最高价
     recent_high = high.tail(20).max()
-    if recent_high > current_price:
-        resistances.append({"level": round(float(recent_high), 2), "type": "20日最高"})
+    if recent_high > current_price and (recent_high - current_price) < max_dist:
+        resistances.append({"level": round(float(recent_high), 3), "type": "20日最高"})
 
-    # 前高（60日）
     high_60 = high.tail(60).max()
-    if high_60 > current_price and high_60 not in [r["level"] for r in resistances]:
-        resistances.append({"level": round(float(high_60), 2), "type": "60日最高"})
+    if high_60 > current_price and (high_60 - current_price) < max_dist and high_60 not in [r["level"] for r in resistances]:
+        resistances.append({"level": round(float(high_60), 3), "type": "60日最高"})
 
     resistances.sort(key=lambda x: x["level"] - current_price)
     return resistances
@@ -164,18 +158,16 @@ def _find_resistances(df: pd.DataFrame, current_price: float) -> list[dict]:
 def _calc_buy_zone(df, current_price, supports) -> dict:
     """计算建议买入区间"""
     if supports:
-        # 最近支撑下方 1%~3% 作为买入区
         nearest = supports[0]["level"]
         return {
-            "low": round(nearest * 0.97, 2),
-            "high": round(nearest * 1.01, 2),
+            "low": round(nearest * 0.97, 3),
+            "high": round(nearest * 1.01, 3),
             "label": f"回调至{supports[0]['type']}(¥{nearest})附近",
         }
-    # 无支撑位，用近期回撤幅度估算
     return {
-        "low": round(current_price * 0.93, 2),
-        "high": round(current_price * 0.97, 2),
-        "label": "技术回调区间（-3%~-7%）",
+        "low": round(current_price * 0.93, 3),
+        "high": round(current_price * 0.97, 3),
+        "label": f"技术回调区间（¥{round(current_price*0.93,3)}~{round(current_price*0.97,3)}）",
     }
 
 
@@ -184,14 +176,14 @@ def _calc_sell_zone(df, current_price, resistances) -> dict:
     if resistances:
         nearest = resistances[0]["level"]
         return {
-            "low": round(nearest * 0.99, 2),
-            "high": round(nearest * 1.03, 2),
+            "low": round(nearest * 0.99, 3),
+            "high": round(nearest * 1.03, 3),
             "label": f"反弹至{resistances[0]['type']}(¥{nearest})附近",
         }
     return {
-        "low": round(current_price * 1.05, 2),
-        "high": round(current_price * 1.12, 2),
-        "label": "前高突破区间（+5%~+12%）",
+        "low": round(current_price * 1.05, 3),
+        "high": round(current_price * 1.12, 3),
+        "label": f"前高突破区间（¥{round(current_price*1.05,3)}~{round(current_price*1.12,3)}）",
     }
 
 

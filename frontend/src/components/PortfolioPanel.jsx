@@ -46,12 +46,13 @@ function HoldingCard({ a, onStockClick, onDelete, onEdit }) {
     <div className="card" style={{ cursor: 'pointer' }} onClick={() => onStockClick?.(a.code)}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 16, fontWeight: 700 }}>{a.name || a.code}</span>
             <span style={{ color: '#8b8fa3', fontFamily: 'monospace', fontSize: 12 }}>{a.code}</span>
             <span className={`signal-badge ${a.signal}`}>
               {a.signal === 'buy' ? '买入' : a.signal === 'sell' ? '卖出' : '持有'}
             </span>
+            <span style={{ fontSize: 10, color: '#8b8fa3' }}>技术面综合判断</span>
           </div>
 
           <div style={{ display: 'flex', gap: 24, marginTop: 8, fontSize: 13 }}>
@@ -244,6 +245,17 @@ export default function PortfolioPanel({ onStockClick }) {
           )}
           <div style={{ marginTop: 8 }}><input className="search-input" style={{ width: '100%' }} placeholder="备注（可选）" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></div>
           <button className="btn btn-primary" style={{ marginTop: 8 }} onClick={handleAdd} disabled={!form.code}>确认添加</button>
+        </div>
+      )}
+
+      {sortedAnalysis.length > 0 && (
+        <div className="card" style={{ background: 'rgba(68,138,255,0.06)', border: '1px solid rgba(68,138,255,0.2)' }}>
+          <div style={{ fontSize: 12, color: '#8b8fa3', lineHeight: 1.8 }}>
+            <span style={{ color: '#448aff', fontWeight: 600 }}>💡 使用说明</span><br />
+            <strong>持仓信号</strong> = 实时技术面打分，回答「现在该买还是卖？」<br />
+            <strong>策略回测</strong> = 历史数据跑策略，回答「什么方法最赚钱？」<br />
+            <span style={{ color: '#448aff' }}>👉 正确用法：点股票 → 策略回测 → 找到最优策略 → 回持仓看信号 → 按策略执行</span>
+          </div>
         </div>
       )}
 
