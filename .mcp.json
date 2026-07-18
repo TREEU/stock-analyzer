@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "ashare": {
+      "command": "uvx",
+      "args": ["ashare-mcp"]
+    }
+  }
+}
