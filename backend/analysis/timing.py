@@ -79,8 +79,8 @@ def analyze_timing(code: str, cost_price: float = 0) -> dict:
 
     return {
         "code": code,
-        "current_price": round(current_price, 2),
-        "cost_price": round(cost_price, 2) if cost_price else None,
+        "current_price": round(current_price, 3),
+        "cost_price": round(cost_price, 3) if cost_price else None,
         "pnl_pct": round(pnl_pct, 2),
         "buy_zone": buy_zone,
         "sell_zone": sell_zone,

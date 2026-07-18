@@ -46,6 +46,24 @@ app.add_middleware(
 app.include_router(router)
 
 
+@app.on_event("startup")
+async def startup():
+    """启动时后台预加载股票和ETF列表，避免首次搜索等待"""
+    import threading
+    def preload():
+        try:
+            from backend.data.fetcher import _get_stock_list
+            _get_stock_list()
+        except Exception:
+            pass
+        try:
+            from backend.data.fetcher import _get_etf_list
+            _get_etf_list()
+        except Exception:
+            pass
+    threading.Thread(target=preload, daemon=True).start()
+
+
 @app.get("/")
 async def root():
     return {"message": "A股量化分析平台 API", "docs": "/docs"}

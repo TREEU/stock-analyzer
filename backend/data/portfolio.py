@@ -47,7 +47,7 @@ def add_holding(code: str, name: str, cost_price: float, quantity: int,
             "id": uuid.uuid4().hex[:8],
             "code": code.strip().zfill(6),
             "name": name.strip(),
-            "cost_price": round(float(cost_price), 2),
+            "cost_price": round(float(cost_price), 4),
             "quantity": int(quantity),
             "notes": notes.strip(),
             "added_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
@@ -65,7 +65,7 @@ def update_holding(holding_id: str, **kwargs) -> dict | None:
         for h in data["holdings"]:
             if h["id"] == holding_id:
                 if "cost_price" in kwargs:
-                    h["cost_price"] = round(float(kwargs["cost_price"]), 2)
+                    h["cost_price"] = round(float(kwargs["cost_price"]), 4)
                 if "quantity" in kwargs:
                     h["quantity"] = int(kwargs["quantity"])
                 if "notes" in kwargs:

@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+import os
 from typing import Optional
 
 import requests
@@ -79,15 +80,47 @@ def search_stocks(keyword: str) -> list[dict]:
 
     try:
         df = _get_stock_list()
-        if df is None or df.empty:
-            return []
+        result = []
+        if df is not None and not df.empty:
+            # 按代码或名称模糊匹配
+            mask = (
+                df["code"].str.contains(keyword, na=False)
+                | df["name"].str.contains(keyword, na=False)
+            )
+            result = df[mask].head(20)[["code", "name"]].to_dict(orient="records")
 
-        # 按代码或名称模糊匹配
-        mask = (
-            df["code"].str.contains(keyword, na=False)
-            | df["name"].str.contains(keyword, na=False)
-        )
-        result = df[mask].head(20)[["code", "name"]].to_dict(orient="records")
+        # ETF列表搜索（带超时保护，失败不影响主搜索）
+        if len(result) < 10:
+            try:
+                etf_df = _get_etf_list()
+                if etf_df is not None and not etf_df.empty:
+                    etf_mask = (
+                        etf_df["code"].str.contains(keyword, na=False)
+                        | etf_df["name"].str.contains(keyword, na=False)
+                    )
+                    etf_hits = etf_df[etf_mask].head(10)[["code", "name"]].to_dict(orient="records")
+                    existing = {r["code"] for r in result}
+                    for h in etf_hits:
+                        if h["code"] not in existing:
+                            result.append(h)
+            except Exception:
+                pass  # ETF搜索失败不阻塞
+
+        # 还找不到或只有代码没名字 → 用价格数据验证+取名字
+        for r in result:
+            if r["name"] == r["code"] or not r["name"]:
+                info = fetch_stock_info(r["code"])
+                if info and info.get("name") and info["name"] != r["code"]:
+                    r["name"] = info["name"]
+
+        if not result and keyword.strip().isdigit() and len(keyword.strip()) == 6:
+            from datetime import datetime
+            end = datetime.now().strftime("%Y%m%d")
+            price = fetch_daily_price(keyword.strip(), end=end)
+            if price is not None and not price.empty:
+                info = fetch_stock_info(keyword.strip())
+                name = (info.get("name") if info else "") or keyword.strip()
+                result = [{"code": keyword.strip(), "name": name}]
 
         spot_cache.set(cache_key, result, CACHE_TTL["spot"])
         return result
@@ -96,16 +129,82 @@ def search_stocks(keyword: str) -> list[dict]:
 
 
 def _get_stock_list() -> Optional[pd.DataFrame]:
-    """获取全A股票代码名称列表（带缓存）"""
+    """获取全A股票代码名称列表（本地文件缓存，避免每次启动卡顿）"""
+    import pickle, time as _time
+    cache_file = os.path.join(os.path.dirname(__file__), "_stock_list.pkl")
+
+    # 读本地缓存（有效期7天）
+    try:
+        if os.path.exists(cache_file):
+            age = _time.time() - os.path.getmtime(cache_file)
+            if age < 86400 * 7:  # 7天内有效
+                with open(cache_file, 'rb') as f:
+                    return pickle.load(f)
+    except Exception:
+        pass
+
+    # 从内存缓存取
     cached = spot_cache.get("stock_list")
     if cached is not None:
         return cached
 
     try:
-        df = ak.stock_info_a_code_name()
-        df = df.rename(columns={"code": "code", "name": "name"})
+        # 分交易所获取，避免北交所接口挂掉导致全挂
+        sz = ak.stock_info_sz_name_code()
+        sh = ak.stock_info_sh_name_code()
+        sz = sz.rename(columns={"A股代码": "code", "A股简称": "name"})
+        sh = sh.rename(columns={"证券代码": "code", "证券简称": "name"})
+        df = pd.concat([sz[["code", "name"]], sh[["code", "name"]]], ignore_index=True)
         df["code"] = df["code"].astype(str).str.zfill(6)
+        try:
+            with open(cache_file, 'wb') as f:
+                pickle.dump(df, f)
+        except Exception:
+            pass
         spot_cache.set("stock_list", df, CACHE_TTL["spot"])
+        return df
+    except Exception:
+        pass
+
+    # 用过期本地缓存兜底
+    try:
+        if os.path.exists(cache_file):
+            with open(cache_file, 'rb') as f:
+                return pickle.load(f)
+    except Exception:
+        pass
+
+    return None
+
+
+def _get_etf_list() -> Optional[pd.DataFrame]:
+    """获取全市场ETF列表（本地文件缓存）"""
+    import pickle, time as _time
+    cache_file = os.path.join(os.path.dirname(__file__), "_etf_list.pkl")
+
+    try:
+        if os.path.exists(cache_file):
+            age = _time.time() - os.path.getmtime(cache_file)
+            if age < 86400 * 7:
+                with open(cache_file, 'rb') as f:
+                    return pickle.load(f)
+    except Exception:
+        pass
+
+    cached = spot_cache.get("etf_list")
+    if cached is not None:
+        return cached
+
+    try:
+        df = ak.fund_etf_spot_em()
+        df = df.rename(columns={"代码": "code", "名称": "name"})
+        df["code"] = df["code"].astype(str).str.zfill(6)
+        try:
+            with open(cache_file, 'wb') as f:
+                pickle.dump(df, f)
+        except Exception:
+            pass
+        spot_cache.set("etf_list", df, CACHE_TTL["spot"])
         return df
     except Exception:
         return None
@@ -230,7 +329,7 @@ def fetch_daily_price(
 
 
 def fetch_stock_info(code: str) -> dict:
-    """获取单只股票的基本信息（实时数据优先，历史数据兜底）"""
+    """获取单只股票的基本信息（只用快速源：ETF缓存+新浪+腾讯行情，不触发akshare下载）"""
     code = _normalize_code(code)
     result = {
         "code": code,
@@ -243,43 +342,61 @@ def fetch_stock_info(code: str) -> dict:
         "turnover_rate": 0,
     }
 
-    # 先尝试获取股票名称
+    # 1. ETF缓存查名字（瞬间）
     try:
-        stock_list = _get_stock_list()
-        if stock_list is not None:
-            row = stock_list[stock_list["code"] == code]
+        etf_list = _get_etf_list()
+        if etf_list is not None:
+            row = etf_list[etf_list["code"] == code]
             if not row.empty:
                 result["name"] = str(row.iloc[0]["name"])
     except Exception:
         pass
 
-    # 尝试实时行情
-    try:
-        spot = _get_spot_safe()
-        if spot is not None:
-            row = spot[spot["code"] == code]
-            if not row.empty:
-                r = row.iloc[0]
-                result["name"] = result["name"] or str(r.get("name", ""))
-                result["latest_price"] = float(r.get("latest_price", 0) or 0)
-                result["pct_change"] = float(r.get("pct_change", 0) or 0)
-                result["pe_ttm"] = float(r.get("pe_ttm", 0) or 0)
-                result["pb"] = float(r.get("pb", 0) or 0)
-                result["market_cap"] = float(r.get("market_cap", 0) or 0)
-                result["turnover_rate"] = float(r.get("turnover_rate", 0) or 0)
-                return result
-    except Exception:
-        pass
+    # 2. 新浪API兜底（科创板/ETF/所有股票，~1秒）
+    if not result["name"] or result["name"] == code:
+        try:
+            prefix = "sh" if code.startswith(("6","9")) else "sz"
+            s = requests.Session(); s.trust_env = False
+            resp = s.get(f"https://hq.sinajs.cn/list={prefix}{code}",
+                       headers={"Referer": "https://finance.sina.com.cn"}, timeout=5)
+            resp.encoding = "gbk"
+            data = resp.text.split('"')[1].split(",")
+            if len(data) > 0 and data[0]:
+                result["name"] = data[0]
+            # 同时取现价
+            if len(data) > 3 and data[3]:
+                result["latest_price"] = float(data[3])
+            if len(data) > 4 and data[4]:
+                result["pct_change"] = float(data[4])
+        except Exception:
+            pass
 
-    # 实时行情不可用时，从历史数据取最新价
+    # 3. 腾讯行情取现价（已有现价则跳过）
+    if result["latest_price"] == 0:
+        try:
+            prefix = "sh" if code.startswith(("6","9")) else "sz"
+            s = requests.Session(); s.trust_env = False
+            resp = s.get(f"https://qt.gtimg.cn/q={prefix}{code}", timeout=5)
+            resp.encoding = "gbk"
+            parts = resp.text.split("~")
+            if len(parts) > 3 and parts[3]:
+                result["latest_price"] = float(parts[3])
+            if not result["name"] and len(parts) > 1:
+                result["name"] = parts[1]
+            if len(parts) > 32 and parts[32]:
+                result["pct_change"] = float(parts[32])
+            if len(parts) > 39 and parts[39]:
+                result["pe_ttm"] = float(parts[39])
+        except Exception:
+            pass
+
+    # 4. 历史数据兜底现价
     if result["latest_price"] == 0:
         try:
             df = fetch_daily_price(code)
             if df is not None and not df.empty:
                 last = df.iloc[-1]
                 result["latest_price"] = float(last["close"])
-                result["pct_change"] = float(last.get("pct_change", 0) or 0)
-                result["turnover_rate"] = float(last.get("turnover_rate", 0) or 0)
         except Exception:
             pass
 

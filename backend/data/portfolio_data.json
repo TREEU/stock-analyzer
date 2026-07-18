@@ -4,7 +4,7 @@
       "id": "837d8d51",
       "code": "600460",
       "name": "士兰微",
-      "cost_price": 50.47,
+      "cost_price": 48.0,
       "quantity": 200,
       "notes": "",
       "added_at": "2026-07-18 18:09"
@@ -13,7 +13,7 @@
       "id": "b3227707",
       "code": "515880",
       "name": "通信ETF",
-      "cost_price": 0.81,
+      "cost_price": 0.8149,
       "quantity": 12800,
       "notes": "",
       "added_at": "2026-07-18 18:11"
@@ -26,7 +26,79 @@
       "quantity": 2800,
       "notes": "",
       "added_at": "2026-07-18 19:39"
+    },
+    {
+      "id": "320ed5c3",
+      "code": "603993",
+      "name": "洛阳钼业",
+      "cost_price": 26.28,
+      "quantity": 400,
+      "notes": "",
+      "added_at": "2026-07-18 19:44"
+    },
+    {
+      "id": "d1507231",
+      "code": "159941",
+      "name": "159941",
+      "cost_price": 1.48,
+      "quantity": 3100,
+      "notes": "",
+      "added_at": "2026-07-18 21:46"
+    },
+    {
+      "id": "fd45331a",
+      "code": "159272",
+      "name": "159272",
+      "cost_price": 0.97,
+      "quantity": 3000,
+      "notes": "",
+      "added_at": "2026-07-18 21:47"
+    },
+    {
+      "id": "41db6f8d",
+      "code": "159870",
+      "name": "159870",
+      "cost_price": 0.87,
+      "quantity": 3000,
+      "notes": "",
+      "added_at": "2026-07-18 21:52"
+    },
+    {
+      "id": "b6b19e8e",
+      "code": "159825",
+      "name": "159825",
+      "cost_price": 0.81,
+      "quantity": 2000,
+      "notes": "",
+      "added_at": "2026-07-18 21:52"
+    },
+    {
+      "id": "71db4fcf",
+      "code": "513310",
+      "name": "中韩半导体ETF华泰柏瑞",
+      "cost_price": 5.98,
+      "quantity": 300,
+      "notes": "",
+      "added_at": "2026-07-18 21:53"
+    },
+    {
+      "id": "4a00229c",
+      "code": "000725",
+      "name": "京东方Ａ",
+      "cost_price": 6.53,
+      "quantity": 200,
+      "notes": "",
+      "added_at": "2026-07-18 21:53"
+    },
+    {
+      "id": "87d6dfe5",
+      "code": "159740",
+      "name": "159740",
+      "cost_price": 0.81,
+      "quantity": 5600,
+      "notes": "",
+      "added_at": "2026-07-18 22:48"
     }
   ],
-  "updated_at": "2026-07-18T19:39:40.297189"
+  "updated_at": "2026-07-18T22:54:32.935850"
 }

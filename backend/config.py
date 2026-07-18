@@ -34,7 +34,7 @@ MAX_POSITION_PCT = 25
 
 # 缓存 TTL（秒）
 CACHE_TTL = {
-    "price": 300,       # 5分钟
+    "price": 60,        # 1分钟（实时行情够用）
     "spot": 30,         # 30秒
     "valuation": 3600,  # 1小时
 }

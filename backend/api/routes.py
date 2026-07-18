@@ -417,9 +417,17 @@ async def api_portfolio_analyze():
     for h in holdings:
         timing = analyze_timing(h["code"], h["cost_price"])
         timing["holding_id"] = h["id"]
-        timing["name"] = h["name"]
+        timing["cost_price"] = h["cost_price"]
         timing["quantity"] = h["quantity"]
         timing["added_at"] = h.get("added_at", "")
+        # 名字解析
+        # 名字解析：优先实时查，兜底用存储的
+        stored_name = h.get("name", "")
+        if not stored_name or stored_name == h["code"] or stored_name.isdigit():
+            info = fetch_stock_info(h["code"])
+            if info and info.get("name") and info["name"] != h["code"]:
+                stored_name = info["name"]
+        timing["name"] = stored_name or h["code"]
         results.append(timing)
 
     # 按信号优先级排序：buy > hold > sell
