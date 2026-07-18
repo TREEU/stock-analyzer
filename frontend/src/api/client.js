@@ -1,8 +1,20 @@
 import axios from 'axios';
 
-// 自动适配：local环境用localhost，手机访问用同一局域网IP
-const host = window.location.hostname;
-const API_BASE = `http://${host}:8000/api`;
+// 自动适配：
+//   - 本地开发: localhost:8000
+//   - 局域网手机访问: 同 IP:8000
+//   - Vercel 云部署: Render 后端地址
+function getApiBase() {
+  const host = window.location.hostname;
+  // 云部署（非本地非局域网）→ 使用 Render 后端
+  if (host !== 'localhost' && host !== '127.0.0.1' && !host.startsWith('192.168.')) {
+    return 'https://stock-analyzer-api.onrender.com/api';
+  }
+  // 本地/局域网
+  return `http://${host}:8000/api`;
+}
+
+const API_BASE = getApiBase();
 
 const client = axios.create({
   baseURL: API_BASE,

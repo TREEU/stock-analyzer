@@ -1,7 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import ReactECharts from 'echarts-for-react';
 
-const BASE = `http://${window.location.hostname}:8000/api`;
+function getApiBase() {
+  const host = window.location.hostname;
+  if (host !== 'localhost' && host !== '127.0.0.1' && !host.startsWith('192.168.')) {
+    return 'https://stock-analyzer-api.onrender.com/api';
+  }
+  return `http://${host}:8000/api`;
+}
+const BASE = getApiBase();
 
 async function fetchOverview() {
   const [indices, flow] = await Promise.all([
